@@ -1,7 +1,4 @@
 ## Utility/common functions for deep learning tutorial
-## Material from http://ufldl.stanford.edu/wiki/index.php/UFLDL_Tutorial
-## and Dan Luu's solutions at https://github.com/danluu/UFLDL-tutorial.git
-## Implemented in julia by Andrew Adare as an educational exercise.
 
 # Logistic sigmoid function and its gradient
 sigmoid(z) = 1 ./ (1 + exp(-z))
