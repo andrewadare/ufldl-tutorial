@@ -164,7 +164,6 @@ function numericalGradient(J, theta)
     numgrad
 end
 
-
 function checkGradient()
     quadTest(x) = (x[1]^2 + 3x[1]*x[2], [2x[1]+3x[2], 3x[1]])
     x = [4.0; 10.0]
