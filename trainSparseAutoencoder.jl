@@ -1,5 +1,6 @@
 using MAT
 using Winston
+using NLopt
 
 include("dltUtils.jl")
 
@@ -38,6 +39,38 @@ function main()
         report = diff < 1e-9 ? "PASS" : "FAIL"
         println("$report: Numerical - analytic gradient norm difference = $diff.")
     end
+
+    # 4. Train sparse autoencoder
+    # For algorithm choices, see the NLOPT docs:
+    #  http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms
+    # For a concise list, view the NLOpt.jl source at 
+    #  https://github.com/JuliaOpt/NLopt.jl/blob/master/src/NLopt.jl.
+    # e.g. :LD_MMA :LD_SLSQP :LN_SBPLX :LD_TNEWTON :LD_LBFGS
+    # The first letter means Global (G) or Local (L).
+    # The second letter means D: Derivative(s) required, N: No derivs. required. 
+    alg = :LD_LBFGS
+    npars = length(theta)
+    opt = Opt(alg, npars)
+    ftol_abs!(opt, 1e-5)
+    ftol_rel!(opt, 1e-4)
+    maxeval!(opt, 300)
+    lower_bounds!(opt, -10.0*ones(npars))
+    upper_bounds!(opt, +10.0*ones(npars))
+    println("Using ", algorithm_name(opt))
+
+    # Create a wrapper for the cost function acceptable to NLopt
+    function f(x::Vector, grad::Vector)
+        J,grad = saeCost(x,nv,nh,lambda,beta,sparsity,patches)
+        J
+    end
+
+    min_objective!(opt, f)
+
+    # min_objective!(opt, (theta, grad) -> lrCost!(theta, X, t, lambda, grad))
+    (minCost, optTheta, status) = optimize!(opt, zeros(npars))        
+    println("Cost = $minCost (returned $status)")
+
+
 end
 
 main()
