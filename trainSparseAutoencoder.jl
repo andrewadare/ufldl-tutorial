@@ -12,7 +12,7 @@ function main()
 
     # 1. Create 10000 8x8 image patches from 10 nature scenes and view a few.
     patches = sampleImages(patchsize = 8, npatches = 10000)
-    if false
+    if true
         mosaic = imageMosaic(patches', 10)
         figure(name="Image patches (10x10 sample)")
         display(imagesc(mosaic))
@@ -26,13 +26,18 @@ function main()
 
     # 3. Gradient checking
     # Compare "analytic" gradient with numerical approximation.
-    # This is slooow. Reduce npatches above to 1000 or so to speed it up.
-    numgrad = numericalGradient(t->saeCost(t,nv,nh,lambda,beta,sparsity,patches), theta)
-    display([numgrad grad])
-    diff = norm(numgrad-grad)/norm(numgrad+grad)
-    report = diff < 1e-9 ? "PASS" : "FAIL"
-    println("$report: Numerical - analytic gradient norm difference = $diff.")
-
+    # Before running the AE test, reduce npatches above to 1000 or so.
+    println("Analytic vs numeric gradients for a small test problem:")
+    checkGradient()
+    if false
+        println("Analytic vs numeric gradients for autoencoder function:")
+        cost(t) = saeCost(t,nv,nh,lambda,beta,sparsity,patches)
+        numgrad = numericalGradient(cost, theta)
+        display([numgrad grad])
+        diff = norm(numgrad-grad)/norm(numgrad+grad)
+        report = diff < 1e-9 ? "PASS" : "FAIL"
+        println("$report: Numerical - analytic gradient norm difference = $diff.")
+    end
 end
 
 main()
