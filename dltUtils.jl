@@ -38,8 +38,10 @@ function sampleImages(; patchsize = 8, npatches = 10000)
     # (due to the sigmoid activation function), we have to make sure 
     # the range of pixel values is also bounded between [0,1].
 
-    # Center
-    patches -= mean(patches)
+    # Center patches
+    for j = 1:npatches
+        patches[:,j] -= mean(patches[:,j])
+    end
 
     # Truncate to +/-3 standard deviations and scale to -1 to 1
     d = 3*std(patches)
@@ -127,6 +129,7 @@ function saeCost(theta, nv, nh, lambda, beta, rho, data)
     spCost = beta*klBernoulli(rho, rhoHat)
 
     J = seCost + regCost + spCost
+    # println("SE, reg, sp: $seCost, $regCost, $spCost")
 
     # Backpropagation ----------------------------------------------------------
     # Sparsity penalty to be added to delta2. 
@@ -170,4 +173,31 @@ function checkGradient()
     diff = norm(numgrad-grad)/norm(numgrad+grad)
     report = diff < 1e-9 ? "PASS" : "FAIL"
     println("$report: Numerical - analytic gradient norm difference = $diff.")
+end
+
+# Reshape columns of A into a square matrix and tile them into a square grid.
+function tileColumns(A::Matrix)
+    m,n = size(A)
+    l = int(sqrt(m))
+    ncols = int(sqrt(n))
+
+    println("m $m n $n l $l ncols $ncols")
+    mosaic = zeros(Float64, ncols*l, ncols*l)
+
+    for j in 1:n
+        Aj = A[:,j]
+        Aj -= mean(A)
+        Aj /= maximum(abs(Aj))
+
+        row = int(ceil(j/ncols))
+        col = j % ncols + (j % ncols == 0 ? ncols : 0)
+
+        a = (row-1)*l + 1
+        b = a + l - 1
+        c = (col-1)*l + 1
+        d = c + l - 1 
+        mosaic[a:b, c:d] = reshape(Aj, l, l)
+        # println("j=$j, row=$row, col=$col [$a:$b, $c:$d]")
+    end
+    mosaic
 end
