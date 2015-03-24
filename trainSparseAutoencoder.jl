@@ -3,7 +3,7 @@ using Winston
 using NLopt
 
 include("dltUtils.jl")
-# include("pars.jl")
+include("pars.jl")
 
 function main()
     nv = 8*8                # Units in the visible layers. Equal to patch size.
@@ -55,7 +55,6 @@ function main()
     # e.g. :LD_MMA :LD_SLSQP :LN_SBPLX :LD_TNEWTON :LD_LBFGS
     # The first letter means Global (G) or Local (L).
     # The second letter means D: Derivative(s) required, N: No derivs. required. 
-    theta = initWeights(nv, nh)
     alg = :LD_LBFGS
     npars = length(theta)
     opt = Opt(alg, npars)
@@ -63,9 +62,9 @@ function main()
     # ftol_rel!(opt, 1e-6)
     # xtol_abs!(opt, 1e-4)
     # xtol_rel!(opt, 1e-4)
-    maxeval!(opt, 400)
-    lower_bounds!(opt, -10*ones(npars))
-    upper_bounds!(opt, +10*ones(npars))
+    maxeval!(opt, 600)
+    lower_bounds!(opt, -2.0*ones(npars))
+    upper_bounds!(opt, +2.0*ones(npars))
     println("Using ", algorithm_name(opt))
 
     # Wrap the cost function to match the signature expected by NLopt
@@ -81,7 +80,7 @@ function main()
     end
 
     min_objective!(opt, f)
-    (minCost, optTheta, status) = optimize!(opt, zeros(npars))        
+    (minCost, optTheta, status) = optimize!(opt, theta)
     println("Cost = $minCost (returned $status)")
     
     viewW1(optTheta, nh, nv)
