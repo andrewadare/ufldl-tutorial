@@ -3,7 +3,6 @@ using Winston
 using NLopt
 
 include("dltUtils.jl")
-include("pars.jl")
 
 function main()
     nv = 8*8                # Units in the visible layers. Equal to patch size.
@@ -58,13 +57,13 @@ function main()
     alg = :LD_LBFGS
     npars = length(theta)
     opt = Opt(alg, npars)
-    # ftol_abs!(opt, 1e-6)
-    # ftol_rel!(opt, 1e-6)
-    # xtol_abs!(opt, 1e-4)
-    # xtol_rel!(opt, 1e-4)
-    maxeval!(opt, 600)
-    lower_bounds!(opt, -2.0*ones(npars))
-    upper_bounds!(opt, +2.0*ones(npars))
+    ftol_abs!(opt, 1e-6)
+    ftol_rel!(opt, 1e-6)
+    xtol_abs!(opt, 1e-4)
+    xtol_rel!(opt, 1e-4)
+    maxeval!(opt, 1000)
+    lower_bounds!(opt, -5.0*ones(npars))
+    upper_bounds!(opt, +5.0*ones(npars))
     println("Using ", algorithm_name(opt))
 
     # Wrap the cost function to match the signature expected by NLopt
@@ -74,7 +73,7 @@ function main()
         
         ncalls += 1
         ng = norm(grad)
-        println("f_$ncalls = $J, grad = $ng")
+        println("$ncalls: J = $J, grad = $ng")
         
         J
     end
@@ -87,8 +86,6 @@ function main()
 end
 
 function viewW1(theta, nh, nv)
-    # As input try theta = trainedTheta() from pars.jl
-    
     W1 = reshape(theta[1:nh*nv], nh, nv)
     figure(name="W1 matrix from trained theta")
     display(imagesc(W1))
@@ -96,7 +93,7 @@ function viewW1(theta, nh, nv)
     A = tileColumns(W1')
     figure(name="Autoencoder weights")
     display(imagesc(A))
-    # savefig("output/W1.png")
+    savefig("output/edges.png")
 end
 
 
