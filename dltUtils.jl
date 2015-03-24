@@ -134,7 +134,7 @@ function saeCost(theta, nv, nh, lambda, beta, rho, data)
     # Backpropagation ----------------------------------------------------------
     # Sparsity penalty to be added to delta2. 
     # This is a vector; repeat m times when computing delta2.
-    kld = (1-rho)./(1-rhoHat) - rho ./ rhoHat
+    kld = (1-rho)./(1-rhoHat) - (rho./rhoHat)
 
     delta3 = e .* (a3 .* (1 - a3))
     delta2 = (W2'*delta3 + beta*repmat(kld,1,m)) .* (a2 .* (1 - a2))
@@ -180,8 +180,6 @@ function tileColumns(A::Matrix)
     m,n = size(A)
     l = int(sqrt(m))
     ncols = int(sqrt(n))
-
-    println("m $m n $n l $l ncols $ncols")
     mosaic = zeros(Float64, ncols*l, ncols*l)
 
     for j in 1:n
