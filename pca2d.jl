@@ -2,6 +2,9 @@
 
 using Winston
 
+plot = true
+save = false
+
 function main()
 x = readdlm("data/pcaData.txt") # 2x45
 m = size(x,2)
@@ -42,13 +45,14 @@ println("\nCovariance matrix of ZCA whitened data:")
 display(z*z'/m)
 
 # Plotting ---------------------------------------------------------------------
+plot || return
 
 # Draw unmodified data
 figure(name="Original Data")
 fp1 = FramedPlot(xlabel="x_1", ylabel="x_2")
 add(fp1, Points(x[1,:], x[2,:], color="DodgerBlue", kind="circle"))
 display(fp1)
-savefig("output/original_data.pdf")
+save && savefig("output/original_data.pdf")
 
 # Superimpose principal axis vectors. The scale of the eigenvectors is not
 # meaningful, so I scale u1 by (-1) for a more "conventional" appearance.
@@ -57,14 +61,14 @@ add(fp1,
     Curve([0 -1*U[1,1]], [0 -1*U[2,1]]), PlotLabel(0.8, 0.7, "u_1"),
     Curve([0    U[1,2]], [0    U[2,2]]), PlotLabel(0.2, 0.7, "u_2"))
 display(fp1)
-savefig("output/principal_axes.pdf")
+save && savefig("output/principal_axes.pdf")
 
 # Plot xrot
 figure(name="Rotated Data")
 fp2 = FramedPlot(xlabel="(U^Tx)_1", ylabel="(U^Tx)_2")
 add(fp2, Points(xrot[1,:], xrot[2,:], color="FireBrick", kind="circle"))
 display(fp2)
-savefig("output/rotated_data.pdf")
+save && savefig("output/rotated_data.pdf")
 
 # Reduced data
 figure(name="Reduced Rotated Data")
@@ -72,20 +76,20 @@ display(scatter(xtr, zeros(xtr),
         color="DarkSlateBlue",
         xlabel="(U^Tx)_1", 
         ylabel="(U^Tx)_2"))
-savefig("output/reduced_rotated_data.pdf")
+save && savefig("output/reduced_rotated_data.pdf")
 
 # Reduced data, rotated back to original frame
 figure(name="Reduced Data")
 display(scatter(xt[1,:], xt[2,:], xlabel="x_1", ylabel="x_2"))
-savefig("output/reduced_data.pdf")
+save && savefig("output/reduced_data.pdf")
 
 figure(name="PCA Whitened Data")
 display(scatter(w[1,:], w[2,:], xlabel="w_1", ylabel="w_2"))
-savefig("output/pca_whitened_data.pdf")
+save && savefig("output/pca_whitened_data.pdf")
 
 figure(name="ZCA Whitened Data")
 display(scatter(z[1,:], z[2,:], xlabel="z_1", ylabel="z_2"))
-savefig("output/zca_whitened_data.pdf")
+save && savefig("output/zca_whitened_data.pdf")
 end
 
 main()
