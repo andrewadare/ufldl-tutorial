@@ -7,48 +7,33 @@ sigmoidGradient(z) = sigmoid(z).*(1 - sigmoid(z))
 # Kullback-Leibler divergence between Bernoulli variables with means p and q.
 klBernoulli(p,q) = sum(p.*log(p./q) + (1-p).*log((1-p)./(1-q)))
 
-function sampleImages(; patchsize = 8, npatches = 10000)
-    imFile = matopen("data/IMAGES.mat") # 10 nature scenes provided in tutorial.
-    # names(imFile)                     # lists one name: "IMAGES"
-    imgs = read(imFile, "IMAGES")       # 512x512x10 Array{Float64,3}:
-
-    if false
-        # Display images with Winston. Images were PCA'ed. 
-        # With this colormap + preprocessing, they don't look very "natural".
-        for i = 1:10
-            figure(name="Natural image $i")
-            display(imagesc(imgs[:,:,i]))
-            savefig("output/natural_image_$i.png")
-        end
-    end
+function sampleImages(imgs; patchsize = 8, npatches = 10000, normalize = true)
 
     # Sample random patches from larger images
     patches = zeros(patchsize*patchsize, npatches)
-    r,c,_ = size(imgs)
+    r,c,m = size(imgs)
     for i = 1:npatches
         # Pick a random upper left corner and get the patch
-        x = rand(1:c-patchsize+1) # 512-8+1
-        y = rand(1:r-patchsize+1) # 512-8+1
-        patch = imgs[x:x+7,y:y+7,rand(1:10)]
+        x = rand(1:c-patchsize+1)
+        y = rand(1:r-patchsize+1)
+        patch = imgs[x:x+patchsize-1,y:y+patchsize-1,rand(1:m)]
         patches[:,i] = patch[:]
     end
 
-    # For the autoencoder to work well we need to normalize the data
-    # Specifically, since the output of the network is bounded between [0,1]
-    # (due to the sigmoid activation function), we have to make sure 
-    # the range of pixel values is also bounded between [0,1].
+    if normalize
+        # Center patches
+        for j = 1:npatches
+            patches[:,j] -= mean(patches[:,j])
+        end
 
-    # Center patches
-    for j = 1:npatches
-        patches[:,j] -= mean(patches[:,j])
+        # Truncate to +/-3 standard deviations and scale to -1 to 1
+        d = 3*std(patches)
+        patches = max(min(patches, d), -d) / d
+
+        # Rescale from [-1,1] to [0.1,0.9]
+        patches = (patches + 1) * 0.4 + 0.1
     end
-
-    # Truncate to +/-3 standard deviations and scale to -1 to 1
-    d = 3*std(patches)
-    patches = max(min(patches, d), -d) / d
-
-    # Rescale from [-1,1] to [0.1,0.9]
-    patches = (patches + 1) * 0.4 + 0.1
+    patches
 end
 
 # Return a square mosaic of N² images selected randomly from an m×n dataset X

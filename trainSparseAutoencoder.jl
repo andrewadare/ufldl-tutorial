@@ -13,7 +13,21 @@ function main()
     npatches = 10000
 
     # 1. Create 10000 8x8 image patches from 10 nature scenes and view a few.
-    patches = sampleImages(patchsize = 8, npatches = npatches)
+    imFile = matopen("data/IMAGES.mat") # 10 nature scenes provided in tutorial.
+    names(imFile)                       # lists one name: "IMAGES"
+    imgs = read(imFile, "IMAGES")       # 512x512x10 Array{Float64,3}:
+
+    if false
+        # Display images with Winston. Images were PCA'ed. 
+        # With this colormap + preprocessing, they don't look very "natural".
+        for i = 1:10
+            figure(name="Natural image $i")
+            display(imagesc(imgs[:,:,i]))
+            savefig("output/natural_image_$i.png")
+        end
+    end
+
+    patches = sampleImages(imgs; patchsize = 8, npatches = npatches)
     if true
         nshow = 15
         mosaic = imageMosaic(patches', nshow)
