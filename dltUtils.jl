@@ -7,6 +7,7 @@ sigmoidGradient(z) = sigmoid(z).*(1 - sigmoid(z))
 # Kullback-Leibler divergence between Bernoulli variables with means p and q.
 klBernoulli(p,q) = sum(p.*log(p./q) + (1-p).*log((1-p)./(1-q)))
 
+# Return image patches in the columns of a (patchsize^2 x npatches) matrix.
 function sampleImages(imgs; patchsize = 8, npatches = 10000, normalize = true)
 
     # Sample random patches from larger images
@@ -36,15 +37,17 @@ function sampleImages(imgs; patchsize = 8, npatches = 10000, normalize = true)
     patches
 end
 
-# Return a square mosaic of N² images selected randomly from an m×n dataset X
+# Return a square mosaic of N² images selected from an m×n dataset X
 # where m is the number of images and each image is √n x √n.
-function imageMosaic(X, N)
+function imageMosaic(X, N; random = true)
     m,n = size(X)
     h,w = int(sqrt(n)), int(sqrt(n))
     mosaic = zeros(Float64, N*h, N*w)
+    entry = 0
     for i in 1:N
         for j in 1:N
-            digit = reshape(X[rand(1:m),:], h, w)'
+            entry = random ? rand(1:m) : entry + 1
+            digit = reshape(X[entry,:], h, w)'
             i1 = h*i - h + 1 
             i2 = i1 + h - 1
             j1 = w*j - w + 1
