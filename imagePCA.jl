@@ -1,5 +1,5 @@
 using MAT
-using Winston
+using Winston, Color
 
 include ("dltUtils.jl")
 
@@ -56,12 +56,13 @@ function main()
 
     # Plot ---------------------------------------------------------------------
     nshow = 12
+    Winston.colormap(Color.colormap("Grays", 256))
     figure(name="Unprocessed image patches ($nshow x $nshow sample)")
-    display(imagesc(imageMosaic(x', nshow; random = false)))
+    display(imagesc(255*imageMosaic(x', nshow; random = false)))
     savefig("output/raw_patches.png")
 
     figure(name="Reduced image patches (k = $k / 144)")
-    display(imagesc(imageMosaic(xhat', nshow; random = false)))
+    display(imagesc(255*imageMosaic(xhat', nshow; random = false)))
     savefig("output/k99percent_patches.png")
 
     figure(name="Covariance of data before PCA (mean subtracted)")
@@ -81,7 +82,7 @@ function main()
     savefig("output/zca_covariance.png")
 
     figure(name="ZCA image patches")
-    display(imagesc(imageMosaic(z', nshow; random = false)))
+    display(imagesc(255*imageMosaic(z', nshow; random = false)))
     savefig("output/zca_whitened_patches.png")
 
 end

@@ -1,5 +1,5 @@
 using MAT
-using Winston
+using Winston, Color
 using NLopt
 
 include("dltUtils.jl")
@@ -11,6 +11,7 @@ function main()
     lambda = 1e-4           # Weight decay (regularization) parameter.
     beta = 3                # Sparsity penalty weight.
     npatches = 10000
+    Winston.colormap(Color.colormap("Grays", 256))
 
     # 1. Create 10000 8x8 image patches from 10 nature scenes and view a few.
     imFile = matopen("data/IMAGES.mat") # 10 nature scenes provided in tutorial.
@@ -102,11 +103,12 @@ end
 function viewW1(theta, nh, nv)
     W1 = reshape(theta[1:nh*nv], nh, nv)
     figure(name="W1 matrix from trained theta")
-    display(imagesc(W1))
+    display(imagesc(255*W1))
     
     A = tileColumns(W1')
+    println("min $(minimum(A)), max $(maximum(A))")
     figure(name="Autoencoder weights")
-    display(imagesc(A))
+    display(imagesc(255*A))
     savefig("output/edges.png")
 end
 
