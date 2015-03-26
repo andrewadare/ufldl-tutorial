@@ -1,4 +1,5 @@
 ## Utility/common functions for deep learning tutorial
+using NLopt
 
 # Logistic sigmoid function and its gradient
 sigmoid(z) = 1 ./ (1 + exp(-z))
@@ -187,3 +188,103 @@ function tileColumns(A::Matrix)
     end
     mosaic
 end
+
+function softmaxCost(theta, ncat, data, labels, lambda)
+    n,m = size(data) # n is input size, m is number of entries. 
+    theta = reshape(theta, ncat, n)
+
+    # Create ground-truth matrix M such that M[r[i],c[i]] = 1 (size ncat x m).
+    # This is the matrix of indicator functions 1{y=j}.
+    ind = full(sparse(int(labels), [1:m;], 1))
+
+    ## For MNIST, the first 10 columns of y look like this (row 10 is the 0 digit):
+    #
+    #    0  0  0  1  0  0  1  0  1  0
+    #    0  0  0  0  0  1  0  0  0  0
+    #    0  0  0  0  0  0  0  1  0  0
+    #    0  0  1  0  0  0  0  0  0  1
+    #    1  0  0  0  0  0  0  0  0  0
+    #    0  0  0  0  0  0  0  0  0  0
+    #    0  0  0  0  0  0  0  0  0  0
+    #    0  0  0  0  0  0  0  0  0  0
+    #    0  0  0  0  1  0  0  0  0  0
+    #    0  1  0  0  0  0  0  0  0  0
+
+    # Compute exp(theta*x).
+    # Handle numerical overflow by subtracting off the largest value in each
+    # column of tx, as explained in the tutorial. This columnwise subtraction
+    # cancels in the ratio later, so this does not affect the final answer.
+    tx = theta*data
+    tx = tx .- maximum(tx, 1)
+
+    # (Safely) exponentiate and divide by column sums to get p(yⁱ = j | xⁱ,Θ).
+    # Each column of p is a categorical distribution (like a histogram whose
+    # ncat bins are probabilities summing to 1.)
+    etx = exp(tx) # size ncat x m
+    p = etx ./ sum(etx, 1)
+    # display(p[:,1:10])
+
+    # Cost function including weight decay term
+    J = -1/m * sum(sum(ind.*log(p))) + lambda/2*sum(sum(theta.^2))
+
+    # Gradient
+    grad = -1/m * (ind - p)*data' + lambda*theta
+
+    # theta = theta[:]
+    J, grad[:]
+end
+
+function trainSoftmax(theta, ncat, x, y, lambda)
+    alg = :LD_LBFGS
+    npars = length(theta)
+    opt = Opt(alg, npars)
+    ftol_abs!(opt, 1e-6)
+    ftol_rel!(opt, 1e-6)
+    xtol_abs!(opt, 1e-4)
+    xtol_rel!(opt, 1e-4)
+    maxeval!(opt, 1000)
+    lower_bounds!(opt, -5.0*ones(npars))
+    upper_bounds!(opt, +5.0*ones(npars))
+    println("Using ", algorithm_name(opt))
+
+    # Wrap the cost function to match the signature expected by NLopt
+    ncalls = 0
+    function f(t::Vector, grad::Vector)
+        J, grad[:] = softmaxCost(t,ncat,x,y,lambda)
+        
+        ncalls += 1
+        ng = norm(grad)
+        println("$ncalls: J = $J, grad = $ng")
+        
+        J
+    end
+
+    min_objective!(opt, f)
+    (minCost, optTheta, status) = optimize!(opt, theta)
+    println("Cost = $minCost (returned $status)")
+    optTheta, minCost, status
+end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
