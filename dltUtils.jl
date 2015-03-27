@@ -1,5 +1,6 @@
 ## Utility/common functions for deep learning tutorial
 using NLopt
+using Winston, Color
 
 # Logistic sigmoid function and its gradient
 sigmoid(z) = 1 ./ (1 + exp(-z))
@@ -234,7 +235,10 @@ function softmaxCost(theta, ncat, data, labels, lambda)
     J, grad[:]
 end
 
-function trainSoftmax(theta, ncat, x, y, lambda)
+function trainSoftmax(nin, ncat, x, y, lambda)
+
+    theta = 0.005*randn(ncat*nin)
+
     alg = :LD_LBFGS
     npars = length(theta)
     opt = Opt(alg, npars)
@@ -313,6 +317,14 @@ function viewW1(theta, nh, nv; saveAs = "output/edges.png")
     savefig(saveAs)
 end
 
+function feedForwardAutoencoder(theta, nv, nh, data)
+    W1 = reshape(theta[1:nh*nv], nh, nv)
+    b1 = theta[2*nh*nv+1:2*nh*nv+nh]
+
+    m = size(data, 2)
+    z2 = W1*data + repmat(b1, 1, m)
+    a2 = sigmoid(z2)
+end
 
 
 
