@@ -6,7 +6,7 @@ include("dltUtils.jl")
 
 function main()
     ncat = 10                 # Number of classification categories
-    npix = 28*28              # Number of pixels in each image
+    nin = 28*28               # Input size (number of pixels in each image)
     lambda = 1e-4             # Regularization parameter
     checkGradient = false
 
@@ -23,15 +23,15 @@ function main()
     ytest[findin(ytest, [0.0])] = 10.0
 
     # Initialize theta with random Gaussian weights, sigma 0.005.
-    theta = 0.005*randn(ncat*npix)
+    theta = 0.005*randn(ncat*nin)
     J, grad = softmaxCost(theta, ncat, x, y, lambda)
 
     if checkGradient   
-        npix = 8;
-        x = randn(npix, 100)
+        nin = 8;
+        x = randn(nin, 100)
         y = rand(1:10, 100)
 
-        theta = 0.005*randn(ncat*npix)
+        theta = 0.005*randn(ncat*nin)
         J, grad = softmaxCost(theta, ncat, x, y, lambda)
 
         numgrad = numericalGradient(t->softmaxCost(t,ncat,x,y,lambda), theta)
@@ -43,15 +43,15 @@ function main()
     end
 
     # Train
-    trainedTheta, minCost, status = trainSoftmax(theta, ncat, x, y, lambda)
+    trainedTheta, minCost, status = trainSoftmax(nin, ncat, x, y, lambda)
 
     # Test
-    trainedTheta = reshape(trainedTheta, ncat, npix)
+    trainedTheta = reshape(trainedTheta, ncat, nin)
     probs = trainedTheta*xtest
     preds = [indmax(probs[:,j]) for j = 1:size(probs,2)]
     accuracy = 100*mean(preds .== ytest)
     println("Accuracy: $accuracy%")
-    
+
     # Plot ---------------------------------------------------------------------
     Winston.colormap(Color.colormap("Grays", 256))
     digit = reshape(x[:,2], 28, 28)
