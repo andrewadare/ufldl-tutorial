@@ -33,7 +33,7 @@ function main()
         nshow = 15
         mosaic = imageMosaic(patches', nshow)
         figure(name="Image patches ($nshow x $nshow sample)")
-        display(imagesc(mosaic))
+        display(imagesc(255*mosaic))
         savefig("output/patches.png")
     end
 
@@ -62,54 +62,10 @@ function main()
     end
 
     # 4. Train sparse autoencoder
-    # For algorithm choices, see the NLOPT docs:
-    #  http://ab-initio.mit.edu/wiki/index.php/NLopt_Algorithms
-    # For a concise list, view the NLOpt.jl source at 
-    #  https://github.com/JuliaOpt/NLopt.jl/blob/master/src/NLopt.jl.
-    # e.g. :LD_MMA :LD_SLSQP :LN_SBPLX :LD_TNEWTON :LD_LBFGS
-    # The first letter means Global (G) or Local (L).
-    # The second letter means D: Derivative(s) required, N: No derivs. required. 
-    alg = :LD_LBFGS
-    npars = length(theta)
-    opt = Opt(alg, npars)
-    ftol_abs!(opt, 1e-6)
-    ftol_rel!(opt, 1e-6)
-    xtol_abs!(opt, 1e-4)
-    xtol_rel!(opt, 1e-4)
-    maxeval!(opt, 1000)
-    lower_bounds!(opt, -5.0*ones(npars))
-    upper_bounds!(opt, +5.0*ones(npars))
-    println("Using ", algorithm_name(opt))
-
-    # Wrap the cost function to match the signature expected by NLopt
-    ncalls = 0
-    function f(x::Vector, grad::Vector)
-        J, grad[:] = saeCost(x,nv,nh,lambda,beta,sparsity,patches)
-        
-        ncalls += 1
-        ng = norm(grad)
-        println("$ncalls: J = $J, grad = $ng")
-        
-        J
-    end
-
-    min_objective!(opt, f)
-    (minCost, optTheta, status) = optimize!(opt, theta)
-    println("Cost = $minCost (returned $status)")
+    optTheta, optJ, status = 
+    trainAutoencoder(theta,nv,nh,lambda,beta,sparsity,patches; maxIter=400)
     
-    viewW1(optTheta, nh, nv)
-end
-
-function viewW1(theta, nh, nv)
-    W1 = reshape(theta[1:nh*nv], nh, nv)
-    figure(name="W1 matrix from trained theta")
-    display(imagesc(255*W1))
-    
-    A = tileColumns(W1')
-    println("min $(minimum(A)), max $(maximum(A))")
-    figure(name="Autoencoder weights")
-    display(imagesc(255*A))
-    savefig("output/edges.png")
+    viewW1(optTheta, nh, nv; saveAs="output/edges.png")
 end
 
 
