@@ -39,8 +39,10 @@ function main()
     println("$(length(test)) examples in supervised testing set.")
 
     theta = initWeights(nv, nh)
+    tic()
     optTheta, optJ, aestatus = 
-    trainAutoencoder(theta,nv,nh,lambda,beta,sparsity,xunlabeled; maxIter=50)
+    trainAutoencoder(theta,nv,nh,lambda,beta,sparsity,xunlabeled; maxIter=400)
+    toc()
 
     Winston.colormap(Color.colormap("Grays", 256))
     viewW1(optTheta, nh, nv; saveAs="output/mnist_features.png")
@@ -53,7 +55,6 @@ function main()
 
     # Make predictions on features learned from test data
     trainedTheta = reshape(trainedTheta, ncat, nh)
-
     probs = trainedTheta*testFeatures
     preds = [indmax(probs[:,j]) for j = 1:size(probs,2)]
     accuracy = 100*mean(preds .== ytest)
