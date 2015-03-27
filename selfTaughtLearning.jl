@@ -1,11 +1,12 @@
 using MNIST
+using Winston
 
 include("dltUtils.jl")
 
 function main()
     ncat = 5                  # Number of categories (digits 0-4)
     nv = 28*28                # Nodes in visible layer (pixels in each image)
-    nh = 200                  # Nodes in hidden layer of autoencoder
+    nh = 196                  # Nodes in hidden layer of autoencoder
     lambda = 3e-3             # Regularization parameter
     sparsity = 0.1            # Avg activation of hidden units
     beta = 3                  # Weight of sparsity penalty term
@@ -38,8 +39,25 @@ function main()
     println("$(length(test)) examples in supervised testing set.")
 
     theta = initWeights(nv, nh)
-    optTheta, optJ, status = 
-    trainAutoencoder(theta,nv,nh,lambda,beta,sparsity,xunlabeled; maxIter=400)
+    optTheta, optJ, aestatus = 
+    trainAutoencoder(theta,nv,nh,lambda,beta,sparsity,xunlabeled; maxIter=50)
+
+    Winston.colormap(Color.colormap("Grays", 256))
+    viewW1(optTheta, nh, nv; saveAs="output/mnist_features.png")
+
+    trainFeatures = feedForwardAutoencoder(optTheta, nv, nh, xtrain)
+    testFeatures  = feedForwardAutoencoder(optTheta, nv, nh, xtest)
+
+    # Train softmax classifier
+    trainedTheta, _, _ = trainSoftmax(nh, ncat, trainFeatures, ytrain, 1e-4)
+
+    # Make predictions on features learned from test data
+    trainedTheta = reshape(trainedTheta, ncat, nh)
+
+    probs = trainedTheta*testFeatures
+    preds = [indmax(probs[:,j]) for j = 1:size(probs,2)]
+    accuracy = 100*mean(preds .== ytest)
+    println("Accuracy: $accuracy%")
 
 end
 
