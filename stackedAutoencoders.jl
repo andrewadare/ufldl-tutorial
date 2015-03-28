@@ -1,5 +1,5 @@
 using MNIST
-using Winston
+# using Winston
 
 include("dltUtils.jl")
 
@@ -11,7 +11,7 @@ function main()
     lambda = 3e-3             # Regularization parameter
     sparsity = 0.1            # Avg activation of hidden units
     beta = 3                  # Weight of sparsity penalty term
-    aeTrainIter = 10          # Number of L-BFGS iterations for AE training
+    aeTrainIter = 2          # Number of L-BFGS iterations for AE training
 
     # Get handwritten digit images and their labels from MNIST package.
     x, y = traindata()        # 784x60000, 60000 
@@ -53,6 +53,19 @@ function main()
     # Up to this point, we have called functions from previous exercises. Now 
     # for some new code.
 
+    stack = Vector{AEWeights}(2)
+    stack[1] = AEWeights(reshape(sae1OptTheta[1:nin*nh1], nh1, nin), 
+                         sae1OptTheta[2*nin*nh1+1:2*nin*nh1+nh1])
+    stack[2] = AEWeights(reshape(sae2OptTheta[1:nh1*nh2], nh2, nh1),
+                         sae2OptTheta[2*nh1*nh2+1:2*nh1*nh2+nh2])
+
+    stackpars, arch = stack2Pars(stack)
+    println("$(arch.inputSize) input units. Hidden layer sizes:")
+    display(arch.layerSizes)
+
+    stackedAeTheta = [saeSoftmaxOptTheta; stackpars]
+
+    size(stackedAeTheta)
 end
 
 main()

@@ -2,12 +2,71 @@
 using NLopt
 using Winston, Color
 
+type AEWeights
+    W::Matrix{FloatingPoint}
+    b::Vector{FloatingPoint}
+end
+
+type NetConfig
+    inputSize::Int
+    layerSizes::Array{Int}
+end
+
 # Logistic sigmoid function and its gradient
 sigmoid(z) = 1 ./ (1 + exp(-z))
 sigmoidGradient(z) = sigmoid(z).*(1 - sigmoid(z))
 
 # Kullback-Leibler divergence between Bernoulli variables with means p and q.
 klBernoulli(p,q) = sum(p.*log(p./q) + (1-p).*log((1-p)./(1-q)))
+
+function stack2Pars(stack::Vector{AEWeights})
+
+    # Number of autoencoders represented in the stack
+    nae = length(stack)
+    
+    # Outputs: pars of stack flattened into a vector, and network arch.
+    params = []
+    nc = NetConfig(0,[])
+
+    for d = 1:nae
+        params = [params; stack[d].W[:]; stack[d].b[:]]
+
+        # Validate the dimensions of W and b
+        @assert size(stack[d].W, 1) == size(stack[d].b, 1)
+        if d < nae
+            @assert size(stack[d].W, 1) == size(stack[d+1].W, 2)
+        end
+    end
+
+    if nae > 0
+        nc.inputSize = size(stack[1].W, 2)
+        nc.layerSizes = [size(stack[d].W,1) for d = 1:nae]
+    end
+
+    params, nc
+end
+
+function pars2Stack(pars::Vector{FloatingPoint}, arch::NetConfig)
+    depth = length(arch.layerSizes)
+    stack = Vector{AEWeights}(depth)
+    prevLayerSize = arch.inputSize
+    
+    idx = 1 # Current position in params vector
+    for d = 1:depth 
+        nb = arch.layerSizes[d]
+        nW = nb * prevLayerSize
+
+        W = reshape(pars[idx:idx+nW-1], nb, prevLayerSize)
+        idx += nW
+        b = pars[idx:idx+nb-1]
+        idx += nb
+        stack[d] = AEWeights(W, b)
+
+        prevLayerSize = nb
+    end
+
+
+end
 
 # Return image patches in the columns of a (patchsize^2 x npatches) matrix.
 function sampleImages(imgs; patchsize = 8, npatches = 10000, normalize = true)
