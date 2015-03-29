@@ -66,6 +66,8 @@ function main()
     stackedAeTheta = [saeSoftmaxOptTheta; stackpars]
 
     size(stackedAeTheta)
+    trainStackedAutoencoder(stackedAeTheta, nin, nh2, ncat, arch, lambda,
+                            x, y; aeTrainIter)
 end
 
 main()

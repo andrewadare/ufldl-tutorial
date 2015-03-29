@@ -42,7 +42,6 @@ function stack2Pars(stack::Vector{AEWeights})
         nc.inputSize = size(stack[1].W, 2)
         nc.layerSizes = [size(stack[d].W,1) for d = 1:nae]
     end
-
     params, nc
 end
 
@@ -64,8 +63,7 @@ function pars2Stack(pars::Vector{FloatingPoint}, arch::NetConfig)
 
         prevLayerSize = nb
     end
-
-
+    stack
 end
 
 # Return image patches in the columns of a (patchsize^2 x npatches) matrix.
@@ -197,6 +195,54 @@ function saeCost(theta, nv, nh, lambda, beta, rho, data)
     J, [gradW1[:]; gradW2[:]; gradb1[:]; gradb2[:]]
 end
 
+function stackedAeCost(theta::Vector{FloatingPoint}, 
+                       nin::Int, 
+                       nh::Int, 
+                       ncat::Int, 
+                       arch::NetConfig, 
+                       lambda::FloatingPoint, 
+                       data, 
+                       labels)
+    softmaxTheta = reshape(theta[1:nh*ncat], ncat, nh)
+    stack = pars2Stack(theta[nh*ncat+1:end], arch)
+    m = size(data, 2)
+    n = length(stack)
+
+    # Finetuning with Backpropagation in 4 steps
+    # 1. Run forward prop to compute activation vectors
+    a = cell(n+1)
+    a[1] = data
+    for l = 1:n
+        a[l+1] = sigmoid(stack[l].W * a[l] + stack[l].b)
+    end
+
+    delta = cell(n+1)
+
+    # 2. Compute delta for the output (softmax) layer
+    I = full(sparse(int(labels), [1:m;], 1))  # Indicator functions 1{y=j}.
+    P = softmaxProb(softmaxTheta, a[n+1])
+    delJ = softmaxTheta'*(I - P)
+    delta[n+1] = -delJ .* (a[n+1] .* (1 - a[n+1]))
+
+    # 3. Loop backwards to compute deltas for the hidden layers
+    for l = n:-1:2
+        delta[l] = stack[l].W'*delta[l+1].*(a[l] .* (1 - a[l]))
+    end
+
+    # 4. Compute partial derivatives (as always, vectorized over data entries)
+    stackgrad = Vector{AEWeights}(n)
+    for l = n:-1:1
+        Wl = delta[l+1]*a[l]'/m
+        bl = sum(delta[l+1],2)/m
+        stackgrad[l] = AEWeights(Wl, bl)
+    end
+
+    # Softmax cost function and gradient 
+    J, smGrad = softmaxCost(softmaxTheta, ncat, a[n+1], labels, lambda)
+
+    J, [smGrad[:]; stack2Pars(stackgrad)]
+end
+
 function numericalGradient(J, theta)
     # J: Cost function (the function itself--not the return value)
     # Θ: AE weights and biases from initWeights() (one big vector).
@@ -257,7 +303,7 @@ function softmaxCost(theta, ncat, data, labels, lambda)
     # This is the matrix of indicator functions 1{y=j}.
     ind = full(sparse(int(labels), [1:m;], 1))
 
-    ## For MNIST, the first 10 columns of y look like this (row 10 is the 0 digit):
+    ## For MNIST, the first 10 columns of ind look like this (row 10 is zero):
     #
     #    0  0  0  1  0  0  1  0  1  0
     #    0  0  0  0  0  1  0  0  0  0
@@ -270,11 +316,24 @@ function softmaxCost(theta, ncat, data, labels, lambda)
     #    0  0  0  0  1  0  0  0  0  0
     #    0  1  0  0  0  0  0  0  0  0
 
+    p = softmaxProb(theta, data)
+    # display(p[:,1:10])
+
+    # Cost function including weight decay term
+    J = -1/m * sum(ind.*log(p)) + lambda/2*sum(theta.^2)
+
+    # Gradient
+    grad = -1/m * (ind - p)*data' + lambda*theta
+
+    J, grad[:]
+end
+
+function softmaxProb(theta, x)
     # Compute exp(theta*x).
     # Handle numerical overflow by subtracting off the largest value in each
     # column of tx, as explained in the tutorial. This columnwise subtraction
     # cancels in the ratio later, so this does not affect the final answer.
-    tx = theta*data
+    tx = theta*x
     tx = tx .- maximum(tx, 1)
 
     # (Safely) exponentiate and divide by column sums to get p(yⁱ = j | xⁱ,Θ).
@@ -282,16 +341,6 @@ function softmaxCost(theta, ncat, data, labels, lambda)
     # ncat bins are probabilities summing to 1.)
     etx = exp(tx) # size ncat x m
     p = etx ./ sum(etx, 1)
-    # display(p[:,1:10])
-
-    # Cost function including weight decay term
-    J = -1/m * sum(sum(ind.*log(p))) + lambda/2*sum(sum(theta.^2))
-
-    # Gradient
-    grad = -1/m * (ind - p)*data' + lambda*theta
-
-    # theta = theta[:]
-    J, grad[:]
 end
 
 function trainSoftmax(nin, ncat, x, y, lambda)
@@ -363,6 +412,42 @@ function trainAutoencoder(theta,nv,nh,lambda,beta,sparsity,data; maxIter=1000)
     println("Cost = $minCost (returned $status)")
     optTheta, minCost, status
 end
+
+function trainStackedAutoencoder(theta::Vector{FloatingPoint},
+                                 nin::Int,
+                                 nh::Int,
+                                 ncat::Int, 
+                                 arch::NetConfig, 
+                                 lambda::FloatingPoint, 
+                                 data, 
+                                 labels;
+                                 maxIter=1000)
+    alg = :LD_LBFGS
+    npars = length(theta)
+    opt = Opt(alg, npars)
+    ftol_abs!(opt, 1e-6)
+    ftol_rel!(opt, 1e-6)
+    maxeval!(opt, maxIter)
+    lower_bounds!(opt, -5.0*ones(npars))
+    upper_bounds!(opt, +5.0*ones(npars))
+    println("Using ", algorithm_name(opt))
+
+    # Wrap the cost function to match the signature expected by NLopt
+    ncalls = 0
+    function f(t::Vector, grad::Vector)
+        J, grad[:] = stackedAeCost(t, nin, nh, ncat, arch, lambda, data, labels)
+        ncalls += 1
+        ng = norm(grad)
+        println("$ncalls: J = $J, grad = $ng")        
+        J
+    end
+
+    min_objective!(opt, f)
+    (minCost, optTheta, status) = optimize!(opt, theta)
+    println("Cost = $minCost (returned $status)")
+    optTheta, minCost, status
+end
+
 
 function viewW1(theta, nh, nv; saveAs = "output/edges.png")
     W1 = reshape(theta[1:nh*nv], nh, nv)
