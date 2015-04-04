@@ -25,11 +25,12 @@ function stack2Pars(stack::Vector{AEWeights})
     nae = length(stack)
     
     # Outputs: pars of stack flattened into a vector, and network arch.
-    params = []
+    params = Array{Float64}(0)
     nc = NetConfig(0,[])
 
     for d = 1:nae
-        params = [params; stack[d].W[:]; stack[d].b[:]]
+        append!(params, stack[d].W[:])
+        append!(params, stack[d].b[:])
 
         # Validate the dimensions of W and b
         @assert size(stack[d].W, 1) == size(stack[d].b, 1)
@@ -45,7 +46,7 @@ function stack2Pars(stack::Vector{AEWeights})
     params, nc
 end
 
-function pars2Stack(pars::Vector{FloatingPoint}, arch::NetConfig)
+function pars2Stack(pars::Vector, arch::NetConfig)
     depth = length(arch.layerSizes)
     stack = Vector{AEWeights}(depth)
     prevLayerSize = arch.inputSize
@@ -195,12 +196,12 @@ function saeCost(theta, nv, nh, lambda, beta, rho, data)
     J, [gradW1[:]; gradW2[:]; gradb1[:]; gradb2[:]]
 end
 
-function stackedAeCost(theta::Vector{FloatingPoint}, 
-                       nin::Int, 
-                       nh::Int, 
-                       ncat::Int, 
+function stackedAeCost(theta::Vector, 
+                       nin::Integer, 
+                       nh::Integer, 
+                       ncat::Integer, 
                        arch::NetConfig, 
-                       lambda::FloatingPoint, 
+                       lambda::Number, 
                        data, 
                        labels)
     softmaxTheta = reshape(theta[1:nh*ncat], ncat, nh)
@@ -413,12 +414,12 @@ function trainAutoencoder(theta,nv,nh,lambda,beta,sparsity,data; maxIter=1000)
     optTheta, minCost, status
 end
 
-function trainStackedAutoencoder(theta::Vector{FloatingPoint},
-                                 nin::Int,
-                                 nh::Int,
-                                 ncat::Int, 
+function trainStackedAutoencoder(theta::Vector,
+                                 nin::Integer,
+                                 nh::Integer,
+                                 ncat::Integer, 
                                  arch::NetConfig, 
-                                 lambda::FloatingPoint, 
+                                 lambda::Number, 
                                  data, 
                                  labels;
                                  maxIter=1000)
