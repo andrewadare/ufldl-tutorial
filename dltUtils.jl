@@ -3,8 +3,8 @@ using NLopt
 using Winston, Color
 
 type AEWeights
-    W::Matrix{FloatingPoint}
-    b::Vector{FloatingPoint}
+    W::Matrix{Real}
+    b::Vector{Real}
 end
 
 type NetConfig
@@ -214,7 +214,8 @@ function stackedAeCost(theta::Vector,
     a = cell(n+1)
     a[1] = data
     for l = 1:n
-        a[l+1] = sigmoid(stack[l].W * a[l] + stack[l].b)
+        z = stack[l].W * a[l] .+ stack[l].b  # z[l+1] is theta[l]*a[l]
+        a[l+1] = sigmoid(float(z))
     end
 
     delta = cell(n+1)
@@ -235,13 +236,14 @@ function stackedAeCost(theta::Vector,
     for l = n:-1:1
         Wl = delta[l+1]*a[l]'/m
         bl = sum(delta[l+1],2)/m
-        stackgrad[l] = AEWeights(Wl, bl)
+        stackgrad[l] = AEWeights(Wl, bl[:])
     end
 
     # Softmax cost function and gradient 
     J, smGrad = softmaxCost(softmaxTheta, ncat, a[n+1], labels, lambda)
 
-    J, [smGrad[:]; stack2Pars(stackgrad)]
+    sg, _ = stack2Pars(stackgrad)
+    J, [smGrad[:]; sg]
 end
 
 function numericalGradient(J, theta)
@@ -471,7 +473,36 @@ function feedForwardAutoencoder(theta, nv, nh, data)
     a2 = sigmoid(z2)
 end
 
+function checkStackedAeCost()
+    nin = 4
+    nh  = 5
+    ncat = 2
+    lambda = 0.01
+    data = randn(nin, 5)
+    labels = [1; 2; 1; 2; 1]
 
+    stack = Vector{AEWeights}(2) # (W1,b1), (W2,b2)
+    stack[1] = AEWeights(0.1*randn(3,nin), zeros(3))
+    stack[2] = AEWeights(0.1*randn(nh,3), zeros(nh))
+
+    softmaxTheta = 0.005*randn(nh*ncat)
+    stackpars, arch = stack2Pars(stack)
+    stackedAeTheta = [softmaxTheta; stackpars]
+
+    cost, grad =
+    stackedAeCost(stackedAeTheta, nin, nh, ncat, arch, lambda, data, labels)
+
+    function J(t)
+        stackedAeCost(t, nin, nh, ncat, arch, lambda, data, labels)
+    end
+
+    numgrad = numericalGradient(J, stackedAeTheta)
+
+    display([numgrad grad])
+    diff = norm(numgrad-grad)/norm(numgrad+grad)
+    report = diff < 1e-9 ? "PASS" : "FAIL"
+    println("$report: Numerical - analytic gradient norm difference = $diff.")
+end
 
 
 
