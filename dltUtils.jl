@@ -196,6 +196,33 @@ function saeCost(theta, nv, nh, lambda, beta, rho, data)
     J, [gradW1[:]; gradW2[:]; gradb1[:]; gradb2[:]]
 end
 
+function fprop(data, stack)
+    n = length(stack)
+    a = cell(n+1)
+    a[1] = data
+    for l = 1:n
+        z = stack[l].W * a[l] .+ stack[l].b  # This is z[l+1]
+        a[l+1] = sigmoid(z)
+    end
+    a
+end
+
+function stackedAePredict(theta::Vector,
+                          nin::Integer, 
+                          nh::Integer, 
+                          ncat::Integer, 
+                          arch::NetConfig, 
+                          data)
+    softmaxTheta = reshape(theta[1:nh*ncat], ncat, nh)
+    stack = pars2Stack(theta[nh*ncat+1:end], arch)
+    n = length(stack)
+
+    a = fprop(data, stack)
+
+    probs = softmaxTheta*a[n+1]
+    preds = [indmax(probs[:,j]) for j = 1:size(probs,2)]
+end
+
 function stackedAeCost(theta::Vector, 
                        nin::Integer, 
                        nh::Integer, 
@@ -209,14 +236,10 @@ function stackedAeCost(theta::Vector,
     m = size(data, 2)
     n = length(stack)
 
-    # Finetuning with Backpropagation in 4 steps
+    # Finetuning with Backpropagation in 4 steps:
+
     # 1. Run forward prop to compute activation vectors
-    a = cell(n+1)
-    a[1] = data
-    for l = 1:n
-        z = stack[l].W * a[l] .+ stack[l].b  # This is z[l+1]
-        a[l+1] = sigmoid(z)
-    end
+    a = fprop(data, stack)
 
     delta = cell(n+1)
 
