@@ -3,8 +3,8 @@ using NLopt
 using Winston, Color
 
 type AEWeights
-    W::Matrix{Real}
-    b::Vector{Real}
+    W::Matrix{Float64}
+    b::Vector{Float64}
 end
 
 type NetConfig
@@ -214,8 +214,8 @@ function stackedAeCost(theta::Vector,
     a = cell(n+1)
     a[1] = data
     for l = 1:n
-        z = stack[l].W * a[l] .+ stack[l].b  # z[l+1] is theta[l]*a[l]
-        a[l+1] = sigmoid(float(z))
+        z = stack[l].W * a[l] .+ stack[l].b  # This is z[l+1]
+        a[l+1] = sigmoid(z)
     end
 
     delta = cell(n+1)
