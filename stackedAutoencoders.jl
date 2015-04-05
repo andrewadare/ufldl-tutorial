@@ -64,14 +64,12 @@ function main()
     stack[2] = AEWeights(reshape(sae2OptTheta[1:nh1*nh2], nh2, nh1),
                          sae2OptTheta[2*nh1*nh2+1:2*nh1*nh2+nh2])
     stackpars, arch = stack2Pars(stack)
-    println("$(arch.inputSize) input units. Hidden layer sizes:")
-    display(arch.layerSizes)
 
     stackedAeTheta = [saeSoftmaxOptTheta; stackpars]
 
     stackedAeOptTheta, saecost =
     trainStackedAutoencoder(stackedAeTheta[:], nin, nh2, ncat, arch, lambda,
-                            x, y; maxIter=12)
+                            x, y; maxIter=100)
 
     println("stackpars          $(size(stackpars         ))")
     println("stackedAeTheta     $(size(stackedAeTheta    ))")
@@ -79,6 +77,16 @@ function main()
     println("sae1OptTheta       $(size(sae1OptTheta      ))")
     println("sae2OptTheta       $(size(sae2OptTheta      ))")
     println("saeSoftmaxOptTheta $(size(saeSoftmaxOptTheta))")
+
+    # Predictions before and after fine tuning
+    bftPreds = stackedAePredict(stackedAeTheta[:],    nin, nh2, ncat, arch, xtest)
+    aftPreds = stackedAePredict(stackedAeOptTheta[:], nin, nh2, ncat, arch, xtest)
+
+    accuracy = 100*mean(bftPreds .== ytest)
+    println("Accuracy before fine-tuning: $accuracy%")
+    accuracy = 100*mean(aftPreds .== ytest)
+    println("Accuracy after fine-tuning: $accuracy%")
+
 end
 
 @time main()
