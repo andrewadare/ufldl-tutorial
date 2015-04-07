@@ -125,10 +125,10 @@ function main()
         println("Cost = $minCost (returned $status)")
         optTheta, minCost, status
 
-        writedlm("output/stl10features.txt", optTheta)
+        writedlm("data/stl10features.txt", optTheta)
     end
     
-    optTheta = readdlm("output/stl10features.txt")
+    optTheta = readdlm("data/stl10features.txt")
 
     W = reshape(optTheta[1:nv * nh], nh, nv)
     b = optTheta[2*nh*nv+1:2*nh*nv+nh]
