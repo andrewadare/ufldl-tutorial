@@ -39,7 +39,7 @@ function loadSTL10Images()
 
 end
 
-function displayColorNetwork(A::Matrix)
+function displayColorNetwork(A::Matrix, saveName::ASCIIString)
     # Shift midpoint if not at zero
     A -= mean(A)
 
@@ -75,23 +75,66 @@ function displayColorNetwork(A::Matrix)
     I += 1
     I /= 2
     view(I)
+    if (length(saveName) > 0)
+        imwrite(colorim(I), saveName)
+    end
 end
 
-function whitenZCA!(x, m, epsilon)
-    sigma = x * x' / m
-    u, s, v = svd(sigma)
-    w = (1 ./ sqrt(s + epsilon)) .* (u'*x)
-    x[:] = u*w
+function main()
+    # checkGrad()
+
+    patches = loadSTL10Images()
+    displayColorNetwork(patches[:,1:100], "output/stl10patches.jpg")
+
+    # ZCA whitening
+    sigma = patches * patches' / nPatches
+    u, s, vt = svd(sigma)
+    z = u * (diagm(1 ./ sqrt(s + epsilon)) * u')
+    patches = z*patches
+
+    displayColorNetwork(patches[:,1:100], "output/stl10patches_zca.jpg")
+
+    if true
+        theta = initWeights(nv, nh)
+
+        # Train autoencoder with linear decoder
+        alg = :LD_LBFGS
+        npars = length(theta)
+        opt = Opt(alg, npars)
+        ftol_abs!(opt, 1e-6)
+        ftol_rel!(opt, 1e-6)
+        maxeval!(opt, 400)
+        lower_bounds!(opt, -5.0*ones(npars))
+        upper_bounds!(opt, +5.0*ones(npars))
+        println("Using ", algorithm_name(opt))
+
+        # Wrap the cost function to match the signature expected by NLopt
+        ncalls = 0
+        function f(x::Vector, grad::Vector)
+            J, grad[:] = saeLinCost(x,nv,nh,lambda,beta,sparsity,patches)
+            
+            ncalls += 1
+            ng = norm(grad)
+            println("$ncalls: J = $J, grad = $ng")
+            
+            J
+        end
+
+        min_objective!(opt, f)
+        (minCost, optTheta, status) = optimize!(opt, theta)
+        println("Cost = $minCost (returned $status)")
+        optTheta, minCost, status
+
+        writedlm("output/stl10features.txt", optTheta)
+    end
+    
+    optTheta = readdlm("output/stl10features.txt")
+
+    W = reshape(optTheta[1:nv * nh], nh, nv)
+    b = optTheta[2*nh*nv+1:2*nh*nv+nh]
+    displayColorNetwork((W*z)', "output/lindecoder_features.jpg")
+
 end
 
-# checkGrad()
+main()
 
-patches = loadSTL10Images()
-displayColorNetwork(patches[:,1:100])
-
-whitenZCA!(patches, nPatches, epsilon)
-displayColorNetwork(patches[:,1:100])
-
-
-# TODO optimize theta and have a look at the features. 
-# TODO move patches out of global scope.
