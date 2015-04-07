@@ -196,6 +196,67 @@ function saeCost(theta, nv, nh, lambda, beta, rho, data)
     J, [gradW1[:]; gradW2[:]; gradb1[:]; gradb2[:]]
 end
 
+# Sparse autoencoder cost function with linear decoder
+function saeLinCost(theta, nv, nh, lambda, beta, rho, data)
+    # Θ:        AE weights and biases from initWeights() (one big vector).
+    # nv, nh:   number of visible and hidden units.
+    # λ:        Weight decay parameter
+    # β:        Weight of sparsity penalty term
+    # ρ:        Sparsity param. Desired average activation for the hidden units.
+    # data:     64x10000 matrix containing the training data (1e4 8x8 patches).  
+    #           So, data[:,i] is the i-th training example. 
+  
+    # Get original components of Θ from the rolled-up vector.
+    W1 = reshape(theta[1:nh*nv], nh, nv)
+    W2 = reshape(theta[nh*nv+1:2*nh*nv], nv, nh)
+    b1 = theta[2*nh*nv+1:2*nh*nv+nh]
+    b2 = theta[2*nh*nv+nh+1:end]
+
+    gradW1, gradW2 = zeros(W1), zeros(W2) # nh x nv, nv x nh
+    gradb1, gradb2 = zeros(b1), zeros(b2) # nh, nv
+
+    # Forward propagation ------------------------------------------------------
+    # Setting a3 = z3 instead of sigmoid(z3) (this is the linear decoder part)
+    m = size(data, 2)
+    z2 = W1*data .+ b1
+    a2 = sigmoid(z2)
+    a3 = W2*a2 .+ b2
+
+    # Reproduction error of autoencoder and squared-error contribution
+    e = a3 - data
+    seCost = 0.5/m * sum(e.^2)
+
+    # Regularization term
+    regCost = 0.5*lambda*sum(W1[:].^2 + W2[:].^2)
+
+    # Sparsity penalty term. 
+    # rhoHat is a vector of mean activations of a2 over the data.
+    rhoHat = 1/m * sum(a2, 2)
+    println(rho, rhoHat)
+    spCost = beta*klBernoulli(rho, rhoHat)
+
+    J = seCost + regCost + spCost
+    # println("SE, reg, sp: $seCost, $regCost, $spCost")
+
+    # Backpropagation ----------------------------------------------------------
+    # Sparsity penalty to be added to delta2. 
+    # This is a vector; repeat m times when computing delta2.
+    kld = (1-rho)./(1-rhoHat) - (rho./rhoHat)
+
+    # This is the only other change from saeCost (instead of
+    # delta3 = e .* (a3 .* (1 - a3)) we have delta3 = e.)
+    delta3 = e
+    delta2 = (W2'*delta3 + beta*repmat(kld,1,m)) .* (a2 .* (1 - a2))
+
+    # Compute gradients --------------------------------------------------------
+    gradW2 = delta3*a2'/m + lambda*W2
+    gradW1 = delta2*data'/m + lambda*W1
+    gradb2 = sum(delta3,2)/m
+    gradb1 = sum(delta2,2)/m
+
+    J, [gradW1[:]; gradW2[:]; gradb1[:]; gradb2[:]]
+end
+
 function fprop(data, stack)
     n = length(stack)
     a = cell(n+1)
