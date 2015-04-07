@@ -232,7 +232,6 @@ function saeLinCost(theta, nv, nh, lambda, beta, rho, data)
     # Sparsity penalty term. 
     # rhoHat is a vector of mean activations of a2 over the data.
     rhoHat = 1/m * sum(a2, 2)
-    println(rho, rhoHat)
     spCost = beta*klBernoulli(rho, rhoHat)
 
     J = seCost + regCost + spCost
