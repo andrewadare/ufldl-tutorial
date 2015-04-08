@@ -39,62 +39,26 @@ function loadSTL10Images()
 
 end
 
-function displayColorNetwork(A::Matrix, saveName::ASCIIString)
-    # Shift midpoint if not at zero
-    A -= mean(A)
-
-    ncols = int(round(sqrt(size(A,2))))
-    nrows = int(ceil(size(A,2)/ncols))
-    ppc = int(size(A,1)/3) # pixels per channel
-    d = int(sqrt(ppc))
-    e = d+1
-
-    B = A[1:ppc,:]
-    C = A[ppc+1:2*ppc,:]
-    D = A[2*ppc+1:3*ppc,:]
-
-    B = B./(ones(size(B,1),1)*maximum(abs(B),1));
-    C = C./(ones(size(C,1),1)*maximum(abs(C),1));
-    D = D./(ones(size(D,1),1)*maximum(abs(D),1));
-
-    I = ones(d*nrows+nrows-1, d*ncols+ncols-1, 3)
-
-    for i = 0:nrows-1
-        for j = 0:ncols-1
-            if i*ncols+j+1 > size(B, 2)
-                break
-            end
-
-            rows, cols = i*e+1:i*e+d, j*e+1:j*e+d
-            I[rows,cols,1] = reshape(B[:,i*ncols+j+1],d, d)
-            I[rows,cols,2] = reshape(C[:,i*ncols+j+1],d, d)
-            I[rows,cols,3] = reshape(D[:,i*ncols+j+1],d, d)
-        end
-    end
-
-    I += 1
-    I /= 2
-    view(I)
-    if (length(saveName) > 0)
-        imwrite(colorim(I), saveName)
-    end
-end
-
 function main()
     # checkGrad()
 
     patches = loadSTL10Images()
     displayColorNetwork(patches[:,1:100], "output/stl10patches.jpg")
 
+    meanPatch = mean(patches, 2)
+    patches = patches .- meanPatch
+    writedlm("data/patch_means.txt", meanPatch)
+
     # ZCA whitening
     sigma = patches * patches' / nPatches
     u, s, vt = svd(sigma)
     z = u * (diagm(1 ./ sqrt(s + epsilon)) * u')
     patches = z*patches
+    writedlm("data/zcawhite.txt", z)
 
     displayColorNetwork(patches[:,1:100], "output/stl10patches_zca.jpg")
 
-    if true
+    if false
         theta = initWeights(nv, nh)
 
         # Train autoencoder with linear decoder
