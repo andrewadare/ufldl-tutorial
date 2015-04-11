@@ -58,7 +58,7 @@ function main()
 
     displayColorNetwork(patches[:,1:100], "output/stl10patches_zca.jpg")
 
-    if false
+    if true
         theta = initWeights(nv, nh)
 
         # Train autoencoder with linear decoder
