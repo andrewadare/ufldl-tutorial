@@ -33,11 +33,10 @@ function main()
     #     view(convImages[:,:,:,i])
     # end
 
-    # println(size(b))
     convolvedFeatures = cnnConvolve(patchDim, nh, convImages, W, b, zcaWhite, meanPatch)
 
-
-    for i = 1:1000
+    # Test the cnnConvolve function
+    for i = 1:1 # Change to 1:1000 to run test
         fNum  = rand([1:nh;])
         imNum = rand([1:8;])
         imRow = rand([1:imgDim - patchDim + 1;])
@@ -64,6 +63,27 @@ function main()
         end 
     end
 
+    pooledFeatures = cnnPool(poolDim, convolvedFeatures)
+
+    # Test pooling function
+    testMatrix = reshape(1:64., 8, 8)
+    expectedMatrix = [mean(mean(testMatrix[1:4, 1:4])) 
+                      mean(mean(testMatrix[5:8, 1:4]))
+                      mean(mean(testMatrix[1:4, 5:8]))
+                      mean(mean(testMatrix[5:8, 5:8]))]
+    testMatrix = reshape(testMatrix, 1, 1, 8, 8)
+    pooledFeatures = cnnPool(4, testMatrix)[:]
+    if isequal(pooledFeatures, expectedMatrix)
+        println("Congratulations! Your pooling code passed the test.")
+    else
+        println("Pooling incorrect")
+        println("Expected")
+        println(expectedMatrix)
+        println("Got")
+        println(pooledFeatures)
+    end
+
+    # TODO: run convolution and pooling on data.
 end
 
 main()

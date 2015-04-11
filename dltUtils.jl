@@ -665,6 +665,31 @@ function cnnConvolve(patchDim, nFeatures, images, W, b, ZCAWhite, meanPatch)
     convolvedFeatures
 end
 
+function cnnPool(poolDim, convolvedFeatures)
+    nImages = size(convolvedFeatures, 2)
+    nFeatures = size(convolvedFeatures, 1)
+    convolvedDim = size(convolvedFeatures, 3)
+    resDim = floor(convolvedDim / poolDim)
+    pooledFeatures = zeros(nFeatures, nImages, 
+                           int(floor(convolvedDim / poolDim)),
+                           int(floor(convolvedDim / poolDim)))
+    for i = 1:nImages
+        for j = 1:nFeatures
+            for poolRow = 1:resDim
+                rowStart = (poolRow - 1) * poolDim + 1
+                rowEnd = rowStart + poolDim - 1
+                for poolCol = 1:resDim
+                    colStart = (poolCol - 1) * poolDim + 1
+                    colEnd = colStart + poolDim - 1
+                    patch = convolvedFeatures[j, i, rowStart:rowEnd, colStart:colEnd]
+                    pooledFeatures[j, i, poolRow, poolCol] = mean(patch[:])
+                end
+            end
+        end
+    end
+    pooledFeatures
+end
+
 # Emulate Matlab's conv2(A, B, 'valid'):
 # "Returns only those parts of the convolution that are computed without the 
 # zero-padded edges."
