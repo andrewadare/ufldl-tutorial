@@ -601,9 +601,9 @@ function displayColorNetwork(A::Matrix, saveName::ASCIIString="")
     C = A[ppc+1:2*ppc,:]
     D = A[2*ppc+1:3*ppc,:]
 
-    B = B./(ones(size(B,1),1)*maximum(abs(B),1));
-    C = C./(ones(size(C,1),1)*maximum(abs(C),1));
-    D = D./(ones(size(D,1),1)*maximum(abs(D),1));
+    B = B./(ones(size(B,1),1)*maximum(abs(B),1))
+    C = C./(ones(size(C,1),1)*maximum(abs(C),1))
+    D = D./(ones(size(D,1),1)*maximum(abs(D),1))
 
     I = ones(d*nrows+nrows-1, d*ncols+ncols-1, 3)
 
@@ -626,4 +626,59 @@ function displayColorNetwork(A::Matrix, saveName::ASCIIString="")
     if (length(saveName) > 0)
         imwrite(colorim(I), saveName)
     end
+end
+
+function cnnConvolve(patchDim, nFeatures, images, W, b, ZCAWhite, meanPatch)
+    nImages = size(images, 4)
+    imageDim = size(images, 1)
+    nChannels = size(images, 3)
+
+    convolvedFeatures = zeros(nFeatures, nImages, 
+                              imageDim - patchDim + 1, 
+                              imageDim - patchDim + 1)
+    W *= ZCAWhite
+    b -= W*meanPatch
+
+    for i = 1:nImages
+        println("Convolving image $i")
+        for j = 1:nFeatures
+
+            n = imageDim - patchDim + 1
+            convolvedImg = zeros(n,n)
+
+            for c = 1:nChannels
+                first = patchDim^2 * (c - 1) + 1
+                last = first + patchDim^2 - 1
+                feature = reshape(W[j, first:last], patchDim, patchDim)
+                
+                # Flip to prepare for convolution
+                feature = flipdim(flipdim(feature, 1), 2)
+
+                img = images[:,:,c,i]
+
+                convolvedImg = convolvedImg + conv2valid(img, feature)
+            end
+
+            convolvedFeatures[j,i,:,:] = sigmoid(convolvedImg + b[j])
+        end
+    end
+    convolvedFeatures
+end
+
+# Emulate Matlab's conv2(A, B, 'valid'):
+# "Returns only those parts of the convolution that are computed without the 
+# zero-padded edges."
+# Unlike a full convolution, this is noncommutative. A >= B is required.
+function conv2valid(A, B)
+    C = conv2(A, B)
+
+    ma, na = size(A)
+    mb, nb = size(B)
+    @assert na >= nb
+    @assert ma >= mb
+
+    nr = max(ma - max(0, mb - 1), 0)
+    nc = max(na - max(0, nb - 1), 0)
+
+    C[mb:mb+nr-1, nb:nb+nc-1]
 end
