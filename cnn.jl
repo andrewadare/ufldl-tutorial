@@ -24,10 +24,10 @@ const trainDataFile = matopen("data/stlTrainSubset.mat")
 const testDataFile  = matopen("data/stlTestSubset.mat")
 const trainLabels   = read(trainDataFile, "trainLabels")
 const testLabels    = read(testDataFile, "testLabels")
-const trainImages   = read(trainDataFile, "trainImages")
-const testImages    = read(testDataFile, "testImages")
-const nTrain        = read(trainDataFile, "numTrainImages") # 2000 images
-const nTest         = read(testDataFile, "numTestImages")   # 3200 images
+const trainImages   = read(trainDataFile, "trainImages") # 64x64x3x2000
+const testImages    = read(testDataFile, "testImages")   # 64x64x3x2000
+const nTrain        = int(read(trainDataFile, "numTrainImages")) # 2000 images
+const nTest         = int(read(testDataFile, "numTestImages"))   # 3200 images
 
 function testConvolution()
     # Test cnnConvolve function on the first 8 training images. 
@@ -91,6 +91,49 @@ function testPooling(convolvedFeatures)
     end
 end
 
+function convPoolData()
+    stepSize = 50
+    @assert mod(nh, stepSize) == 0
+
+    n = int(floor((imgDim - patchDim + 1) / poolDim)) # feature rows = cols
+    pooledFeaturesTrain = zeros(nh, nTrain, n, n) 
+    pooledFeaturesTest = zeros(nh, nTest, n, n)
+
+    nSteps = int(nh/stepSize)
+    for i = 1:nSteps
+        f1 = (i - 1)*stepSize + 1 # first index of feature array in step i
+        f2 = i*stepSize           # last index
+
+        println("Step $i/$nSteps: features $f1 to $f2")
+        Wi = W[f1:f2,:]
+        bi = b[f1:f2]
+
+        println("   Convolving and pooling train images")
+        cfi = cnnConvolve(patchDim, stepSize, trainImages[:,:,:,1:nTrain],
+                          Wi, bi, zcaWhite, meanPatch)
+        pooledFeaturesTrain[f1:f2, :, :, :] = cnnPool(poolDim, cfi)
+
+        println("   Convolving and pooling test images")
+        cfi = cnnConvolve(patchDim, stepSize, testImages[:,:,:,1:nTest],
+                          Wi, bi, zcaWhite, meanPatch)
+        pooledFeaturesTest[f1:f2, :, :, :] = cnnPool(poolDim, cfi)
+    end
+    file = matopen("data/pooled_features.mat", "w")
+    write(file, "pooledFeaturesTrain", pooledFeaturesTrain)
+    write(file, "pooledFeaturesTest", pooledFeaturesTest)
+    close(file)
+
+    pooledFeaturesTrain, pooledFeaturesTest
+end
+
+function getSavedFeatures()
+        file = matopen("data/pooled_features.mat")
+        pooledFeaturesTrain = read(file, "pooledFeaturesTrain") 
+        pooledFeaturesTest  = read(file, "pooledFeaturesTest")
+
+        pooledFeaturesTrain, pooledFeaturesTest
+end
+
 function main()
     if false
         displayColorNetwork((W*zcaWhite)')
@@ -98,6 +141,32 @@ function main()
         testPooling(tcFeatures)
     end
 
+    # Running convPoolData takes a long time. The results are saved to .mat
+    # files so it only needs to be done once. For any subsequent running, set 
+    # useSavedFeatures to true.
+    useSavedFeatures = false
+    @time pooledFeaturesTrain, pooledFeaturesTest = 
+    useSavedFeatures ? getSavedFeatures() : convPoolData()
+
+    # Train softmax classifier on the convolved + pooled features.
+    # Reshape the pooledFeatures to form an input vector for softmax
+    nin = int(length(pooledFeaturesTrain)/nTrain)
+    X = permutedims(pooledFeaturesTrain, [1, 3, 4, 2])
+    X = reshape(X, nin, nTrain)
+    y = trainLabels[1:nTrain]
+
+    ncat = 4 # Number of classification categories
+    optTheta, minCost, status = trainSoftmax(nin, ncat, X, y, 1e-4)
+    optTheta = reshape(optTheta, ncat, nin)
+
+    # Test
+    X = permutedims(pooledFeaturesTest, [1, 3, 4, 2])
+    X = reshape(X, int(length(pooledFeaturesTest)/nTest), nTest)
+
+    probs = optTheta*X
+    preds = [indmax(probs[:,j]) for j = 1:size(probs,2)]
+    accuracy = 100*mean(preds .== testLabels[1:nTest])
+    println("Accuracy: $accuracy%")
 end
 
 main()
