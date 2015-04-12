@@ -640,7 +640,7 @@ function cnnConvolve(patchDim, nFeatures, images, W, b, ZCAWhite, meanPatch)
     b -= W*meanPatch
 
     for i = 1:nImages
-        println("Convolving image $i")
+        print("Convolving image $i/$nImages\r")
         for j = 1:nFeatures
 
             n = imageDim - patchDim + 1
