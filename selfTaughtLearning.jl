@@ -1,5 +1,4 @@
 using MNIST
-using Winston
 
 include("dltUtils.jl")
 
@@ -39,13 +38,13 @@ function main()
     println("$(length(test)) examples in supervised testing set.")
 
     theta = initWeights(nv, nh)
-    tic()
-    optTheta, optJ, aestatus = 
-    trainAutoencoder(theta,nv,nh,lambda,beta,sparsity,xunlabeled; maxIter=400)
-    toc()
 
-    Winston.colormap(Color.colormap("Grays", 256))
-    viewW1(optTheta, nh, nv; saveAs="output/mnist_features.png")
+    @time optTheta, optJ, aestatus = 
+    trainAutoencoder(theta,nv,nh,lambda,beta,sparsity,xunlabeled; maxIter=400)
+    writedlm("data/mnist_features.txt", optTheta)
+
+    # Winston.colormap(Color.colormap("Grays", 256))
+    # viewW1(optTheta, nh, nv; saveAs="output/mnist_features.png")
 
     trainFeatures = feedForwardAutoencoder(optTheta, nv, nh, xtrain)
     testFeatures  = feedForwardAutoencoder(optTheta, nv, nh, xtest)
